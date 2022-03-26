@@ -20,7 +20,7 @@ def allowed_files(filename):
     return '.' in filename and \
         filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-class Test(Resource):
+class GetData(Resource):
     def get(self):
         return {'test': 'test'}
 
@@ -37,7 +37,8 @@ class Test(Resource):
             fitfile = fitparse.FitFile(get_path(filename))
             
             coords = [] 
-            response = {}
+            timestamps = []
+            speed = 0
             counter = 0
             for record in fitfile.get_messages("record"):
                 for data in record:
@@ -45,14 +46,23 @@ class Test(Resource):
                         x = round(data.value * (180 / 2**31), 5)
                     if data.name == 'position_long':
                         y = round(data.value * (180 / 2**31), 5)
-                
+                    if data.name == 'speed':
+                        speed = speed + data.value
+                    if data.name == 'timestamp':
+                        timestamps.append(data.value)
+
                 counter = counter + 1
                 if counter % 10 == 0:
                     coords.append({'x': x, 'y': y}) 
-                
-                
+                                
+
+            response = {}    
             response['coords'] = coords
+            response['avg_speed'] = round((speed/counter * 3.6), 2)
+            response['data_start'] = str(timestamps[0])
+            response['data_end'] = str(timestamps[-1])
+            
+            os.remove(get_path(filename))
+            return {'data': response}, 200
 
-            return {'data': response}
-
-api.add_resource(Test, '/')
+api.add_resource(GetData, '/')
